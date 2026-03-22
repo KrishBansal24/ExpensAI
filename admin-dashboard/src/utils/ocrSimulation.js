@@ -11,7 +11,7 @@ import { ocrPatterns } from '../data/dummyData';
  * Returns a promise that resolves after a realistic delay
  * with extracted vendor, amount, and date.
  */
-export function simulateOCR(file) {
+export function simulateOCR() {
   return new Promise((resolve) => {
     // Simulate processing delay (1.5 - 3 seconds)
     const delay = 1500 + Math.random() * 1500;

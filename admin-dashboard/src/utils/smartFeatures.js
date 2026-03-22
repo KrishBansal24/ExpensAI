@@ -120,15 +120,17 @@ export function checkFraudFlags(expense) {
  * Format currency amount with Indian locale.
  */
 export function formatCurrency(amount) {
-  return `₹${parseFloat(amount).toLocaleString('en-IN')}`;
+  const numeric = Number(amount || 0);
+  return `₹${numeric.toLocaleString('en-IN')}`;
 }
 
 /**
  * Get time ago string from a timestamp.
  */
 export function timeAgo(timestamp) {
-  const now = new Date('2026-03-22T15:15:00+05:30');
-  const past = new Date(timestamp);
+  const now = new Date();
+  const past = toDate(timestamp);
+  if (!past) return 'Unknown time';
   const diffMs = now - past;
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
@@ -139,4 +141,31 @@ export function timeAgo(timestamp) {
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
   return past.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+export function formatDateTime(timestamp) {
+  const date = toDate(timestamp);
+  if (!date) return 'N/A';
+
+  return date.toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+export function shortId(value, take = 8) {
+  if (!value) return '';
+  if (value.length <= take) return value;
+  return `${value.slice(0, take)}...`;
+}
+
+function toDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value?.toDate === 'function') return value.toDate();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }

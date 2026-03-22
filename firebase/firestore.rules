@@ -3,17 +3,27 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Function to check if user is a manager (custom logic could check a user role field)
+    // Function to check if user is a manager or admin
     function isManager() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager';
+      return request.auth != null &&
+        (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        );
     }
 
-    // Users collection
+    // Users collection (wallet profile)
     match /users/{userId} {
-      // Anyone can read user data (simplified for demo)
-      allow read: if request.auth != null;
-      // Users can only update their own profile
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && (request.auth.uid == userId || isManager());
+
+      // Employee self profile write
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+
+      // Manager/Admin can assign wallet and role fields
+      allow update: if request.auth != null && isManager();
+
+      // Manager/Admin can archive or remove stale employee profiles
+      allow delete: if request.auth != null && isManager();
     }
 
     // Expenses collection
@@ -32,6 +42,20 @@ service cloud.firestore {
       
       // Employees can delete their pending expenses
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid && resource.data.status == 'pending';
+    }
+
+    // Transactions collection (wallet + UPI)
+    match /transactions/{transactionId} {
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isManager());
+
+      // Employee can create own UPI transaction
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+
+      // Manager can update status (approve/reject)
+      allow update: if request.auth != null && isManager();
+
+      // No deletes in demo flow
+      allow delete: if false;
     }
   }
 }

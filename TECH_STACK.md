@@ -8,17 +8,16 @@ ExpensAI is built as a highly decoupled full-stack system using Firebase as a ce
 graph TD
     A[Mobile App - React Native] <-->|Auth, Read/Write| D[(Firebase Firestore & Auth)]
     B[Admin Web - React.js] <-->|Auth, Read/Write| D
-    C[Web Demo - React.js] <-->|Auth, Read/Write| D
-    
+
     A -->|Upload Receipts| E[Firebase Storage]
-    C -->|Upload Receipts| E
+  B -->|Rules + Monitoring| F[Wallet and Transaction Ops]
 ```
 
 ## Tech Stack Choices & Rationale
 
 ### 1. Frontend Frameworks
 - **React Native (Expo)**: Chosen for the mobile app to ensure a purely native feel on both iOS and Android while utilizing a single JavaScript codebase. Expo accelerates development by removing the need for Android Studio/Xcode configuration.
-- **React.js (Vite)**: Chosen for the Admin Dashboard and Web Demo. Vite provides instantaneous hot-module replacement (HMR) during development. React allows us to share business logic, custom hooks, and utility functions easily across the mobile and web codebases.
+- **React.js (Vite)**: Chosen for the Admin Dashboard. Vite provides instantaneous hot-module replacement (HMR) during development. React allows fast component composition for live tables, filters, and analytics.
 
 ### 2. Backend (Firebase)
 Firebase was selected as the backend over a traditional Node.js/Express + PostgreSQL stack for several critical reasons:
@@ -44,28 +43,40 @@ Firebase was selected as the backend over a traditional Node.js/Express + Postgr
   "id": "abc123xyz",
   "name": "Jyoti Sharma",
   "email": "jyoti@acmecorp.com",
-  "role": "employee", 
-  "department": "Engineering"
+  "role": "employee",
+  "department": "Engineering",
+  "walletAssigned": 50000,
+  "walletBalance": 31250,
+  "walletSpent": 18750,
+  "period": "March 2026",
+  "active": true
 }
 ```
 
-**`expenses` collection**
+**`transactions` collection**
 ```json
 {
-  "id": "exp_789xyz",
+  "id": "txn_789xyz",
   "userId": "abc123xyz",
   "userName": "Jyoti Sharma",
   "amount": 850,
-  "vendor": "Starbucks",
   "category": "food",
-  "date": "2026-03-22",
-  "status": "pending", 
-  "receiptUrl": "https://firebasestorage...",
-  "createdAt": "Timestamp"
+  "paymentMode": "UPI",
+  "status": "pending",
+  "timestamp": "2026-03-22T09:30:00.000Z",
+  "location": { "lat": 28.4945, "lng": 77.0888 },
+  "reviewedBy": null,
+  "reviewedAt": null
 }
 ```
 
+### Real-Time Wallet Flow
+- Admin allocates budget in dashboard -> updates `users.walletAssigned` and `users.walletBalance`.
+- Employee creates UPI transaction in mobile app -> writes to `transactions` and deducts from wallet in one transaction.
+- Admin approves/rejects from dashboard -> updates `transactions.status` instantly.
+- On reject, wallet refund is applied to `users.walletBalance` and `users.walletSpent` atomically.
+
 ## Scalability
 - **Database**: Firestore scales horizontally automatically. It relies on indexes for queries, meaning querying 10 expenses takes the same time as querying 10 million expenses.
-- **Hosting**: Vercel/Netlify provides global CDN distribution for the web apps.
+- **Hosting**: Vercel provides global CDN distribution for the admin dashboard.
 - **Storage**: Firebase Storage uses Google Cloud Storage infrastructure.

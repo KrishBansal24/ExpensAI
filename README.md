@@ -1,10 +1,10 @@
 # ExpensAI Full-Stack System
 
-A complete corporate expense tracking system with three distinct interfaces.
+A complete corporate expense tracking system with two tightly integrated interfaces.
 
 ## Project Structure
 
-This repository contains three independent projects:
+This repository contains two core projects:
 
 1. **`/mobile-app`**
    - React Native (Expo) mobile app for Employees.
@@ -14,11 +14,7 @@ This repository contains three independent projects:
    - React.js (Vite) desktop web dashboard for Managers.
    - Features: Google Auth, Expense analytics, Filtering, Approve/Reject workflow.
 
-3. **`/web-demo`**
-   - React.js (Vite) web app designed to look like a mobile phone.
-   - Purpose: Easy presentation and demoing on a laptop without needing an emulator.
-
-4. **`/firebase`**
+3. **`/firebase`**
    - Shared Firebase security rules and configuration logic.
 
 ## Setup & Deployment

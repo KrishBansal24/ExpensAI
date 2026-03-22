@@ -1,108 +1,118 @@
-import { useState } from 'react';
-import { initialExpenses } from '../data';
-import { formatCurrency, timeAgo } from '../utils';
+import { useMemo } from 'react';
+import { IoAlertCircleOutline, IoTrendingUpOutline } from 'react-icons/io5';
+import MetricCard from '../components/MetricCard';
+import { useAdminData } from '../context/AdminDataContext';
+import { formatCurrency, formatDateTime, timeAgo } from '../utils';
 
 export default function Dashboard() {
-  const [expenses] = useState(initialExpenses);
-  
-  // Basic analytics calculations
-  const totalExpenses = expenses.length;
-  const pendingCount = expenses.filter(e => e.status === 'pending').length;
-  
-  const totalApprovedAmount = expenses
-    .filter(e => e.status === 'approved')
-    .reduce((sum, e) => sum + e.amount, 0);
+  const { transactions, totals, loading, error } = useAdminData();
 
-  // Category breakdown
-  const categoryTotals = expenses.reduce((acc, exp) => {
-    if (exp.status === 'approved') {
-      acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
-    }
-    return acc;
-  }, {});
+  const latestTransactions = useMemo(() => transactions.slice(0, 8), [transactions]);
+
+  const notifications = useMemo(() => {
+    return transactions
+      .filter((tx) => {
+        const amount = Number(tx.amount || 0);
+        return amount >= 10000 || tx.status === 'rejected';
+      })
+      .slice(0, 6)
+      .map((tx) => {
+        const amount = Number(tx.amount || 0);
+        const isHighAmount = amount >= 10000;
+        return {
+          id: tx.id,
+          type: isHighAmount ? 'high-value' : 'policy',
+          message: isHighAmount
+            ? `High-value transaction ${formatCurrency(amount)} by ${tx.userName || 'employee'}`
+            : `Rejected transaction detected for ${tx.userName || 'employee'}`,
+          timestamp: tx.timestamp,
+        };
+      });
+  }, [transactions]);
+
+  if (loading) {
+    return <div className="page-container"><div className="card">Syncing dashboard with Firebase...</div></div>;
+  }
+
+  if (error) {
+    return <div className="page-container"><div className="card" style={{ color: 'var(--color-danger)' }}>{error}</div></div>;
+  }
 
   return (
     <div className="page-container">
-      <h1 style={{ marginBottom: '24px' }}>Overview</h1>
+      <section className="section-headline" style={{ marginBottom: 16 }}>
+        <h1>Overview</h1>
+        <p>Real-time snapshot of wallet allocation, UPI flow, and transaction review workload.</p>
+      </section>
       
-      {/* Stats Overview */}
-      <div className="stats-grid">
-        <div className="card stat-card">
-          <span className="stat-title">Total Submitted</span>
-          <span className="stat-value">{totalExpenses}</span>
-        </div>
-        <div className="card stat-card">
-          <span className="stat-title">Pending Review</span>
-          <span className="stat-value" style={{ color: 'var(--color-warning)' }}>{pendingCount}</span>
-        </div>
-        <div className="card stat-card">
-          <span className="stat-title">Approved Spend</span>
-          <span className="stat-value" style={{ color: 'var(--color-success)' }}>
-            {formatCurrency(totalApprovedAmount)}
-          </span>
-        </div>
-      </div>
+      <section className="stats-grid">
+        <MetricCard title="Total transactions" value={totals.transactionCount} subtitle="All UPI submissions" />
+        <MetricCard title="Pending review" value={totals.pendingCount} subtitle="Manager action required" accent="var(--color-warning)" />
+        <MetricCard title="Approved spend" value={formatCurrency(totals.approvedAmount)} subtitle="Across all employees" accent="var(--color-success)" />
+        <MetricCard title="Wallet assigned" value={formatCurrency(totals.totalAssigned)} subtitle="Current active cycle" />
+        <MetricCard title="Wallet balance" value={formatCurrency(totals.totalBalance)} subtitle="Remaining funds" accent="var(--color-secondary)" />
+        <MetricCard title="Wallet spent" value={formatCurrency(totals.totalSpent)} subtitle="Real-time from user profiles" accent="var(--color-danger)" />
+      </section>
 
-      {/* Quick Recent List & Category Breakdown */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
-        
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '1.25rem' }}>Recent Submissions</h2>
-          </div>
+      <section className="dashboard-grid">
+        <article className="card" style={{ overflowX: 'auto' }}>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '16px' }}>Live UPI Activity</h2>
           <table className="data-table">
             <thead>
               <tr>
                 <th>Employee</th>
-                <th>Merchant</th>
+                <th>Category</th>
                 <th>Amount</th>
                 <th>Status</th>
-                <th>Date</th>
+                <th>Submitted</th>
               </tr>
             </thead>
             <tbody>
-              {expenses.slice(0, 5).map(exp => (
+              {latestTransactions.map((exp) => (
                 <tr key={exp.id}>
                   <td>
-                    <div style={{ fontWeight: 500 }}>{exp.userId === 'emp_001' ? 'Jyoti Sharma' : 'Employee'}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Engineering</div>
+                    <div style={{ fontWeight: 500 }}>{exp.userName || 'Employee'}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontFamily: 'monospace' }}>
+                      {exp.userId?.slice(0,6)}
+                    </div>
                   </td>
-                  <td>{exp.vendor}</td>
+                  <td>{exp.category || 'General'}</td>
                   <td style={{ fontWeight: 600 }}>{formatCurrency(exp.amount)}</td>
                   <td><span className={`status-badge status-${exp.status}`}>{exp.status}</span></td>
-                  <td style={{ fontSize: '0.875rem' }}>{timeAgo(exp.date)}</td>
+                  <td style={{ fontSize: '0.875rem' }} title={formatDateTime(exp.timestamp)}>{timeAgo(exp.timestamp)}</td>
                 </tr>
               ))}
+              {transactions.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '32px' }}>No expenses found in database.</td>
+                </tr>
+              )}
             </tbody>
           </table>
-        </div>
+        </article>
 
-        <div className="card">
-          <h2 style={{ fontSize: '1.25rem', marginBottom: '16px' }}>Spend by Category</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {Object.entries(categoryTotals)
-              .sort(([,a], [,b]) => b - a)
-              .map(([category, amount]) => (
-              <div key={category}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.875rem' }}>
-                  <span style={{ textTransform: 'capitalize' }}>{category}</span>
-                  <span style={{ fontWeight: 600 }}>{formatCurrency(amount)}</span>
+        <aside className="card">
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '16px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <IoAlertCircleOutline /> Alerts
+            </span>
+          </h2>
+          <div style={{ display: 'grid', gap: 12 }}>
+            {notifications.map((item) => (
+              <div key={item.id} className="alert-row">
+                <div className="alert-icon">
+                  <IoTrendingUpOutline />
                 </div>
-                {/* Simple progress bar representation */}
-                <div style={{ width: '100%', height: '8px', background: 'var(--color-surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ 
-                    width: `${(amount / totalApprovedAmount) * 100}%`, 
-                    height: '100%', 
-                    background: 'var(--color-primary)',
-                    borderRadius: '4px'
-                  }} />
+                <div>
+                  <p>{item.message}</p>
+                  <small className="muted-text">{timeAgo(item.timestamp)}</small>
                 </div>
               </div>
             ))}
+            {notifications.length === 0 ? <div className="muted-text">No unusual patterns detected.</div> : null}
           </div>
-        </div>
-
-      </div>
+        </aside>
+      </section>
     </div>
   );
 }

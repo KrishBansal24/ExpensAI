@@ -1,6 +1,6 @@
 # ExpensAI Configuration & Deployment Guide
 
-This guide walks through setting up the Firebase backend, running the three apps locally, and deploying the system.
+This guide walks through setting up the Firebase backend, running the two apps locally, and deploying the system.
 
 ## 1. Firebase Setup (Backend)
 
@@ -34,9 +34,9 @@ ExpensAI uses Firebase for Authentication, Database (Firestore), and Storage.
 
 ## 2. Configuration
 
-You must add your Firebase config to all three projects.
+You must add your Firebase config to the admin dashboard.
 
-1. Create a `.env` file in **both** `/web-demo` and `/admin-dashboard`:
+1. Create a `.env` file in `/admin-dashboard`:
 ```env
 VITE_FIREBASE_API_KEY=your_api_key
 VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
@@ -77,16 +77,6 @@ npm run dev
 ```
 - Open `http://localhost:5173` in your browser
 
-### Web Demo
-```bash
-cd web-demo
-npm install
-npm run dev
-```
-- Open `http://localhost:5174` in your browser
-
----
-
 ## 4. Deployment
 
 ### Deploy Admin Dashboard (Vercel)
@@ -96,15 +86,6 @@ npm run dev
 4. Set the **Root Directory** to `admin-dashboard`
 5. Expand **Environment Variables** and add all your `VITE_FIREBASE_*` variables
 6. Click **Deploy**
-
-### Deploy Web Demo (Netlify)
-1. Push your code to GitHub
-2. Go to [Netlify](https://www.netlify.com/) and click **Add new site > Import an existing project**
-3. Select your repository
-4. Set **Base directory** to `web-demo`
-5. Set **Build command** to `npm run build` and **Publish directory** to `web-demo/dist`
-6. Click **Advanced build settings** and add your `VITE_FIREBASE_*` environment variables
-7. Click **Deploy site**
 
 ### Build Mobile App (APK for Android)
 To build a standalone APK without writing native code:
