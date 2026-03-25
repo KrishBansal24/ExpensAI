@@ -7,7 +7,7 @@ import {
   signInWithPopup,
   signOut,
 } from 'firebase/auth';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 const AuthContext = createContext();
@@ -59,7 +59,9 @@ export function AuthProvider({ children }) {
         const userSnap = await getDoc(userRef);
 
         if (!userSnap.exists()) {
-          const defaultRole = ADMIN_EMAILS.includes((currentUser.email || '').toLowerCase()) ? 'admin' : 'employee';
+          const normalizedEmail = (currentUser.email || '').toLowerCase();
+          const existingUsers = await getDocs(query(collection(db, 'users'), limit(1)));
+          const defaultRole = (existingUsers.empty || ADMIN_EMAILS.includes(normalizedEmail)) ? 'admin' : 'employee';
 
           await setDoc(userRef, {
             uid: currentUser.uid,
@@ -75,8 +77,18 @@ export function AuthProvider({ children }) {
           }, { merge: true });
         }
 
-        const latestSnap = await getDoc(userRef);
-        const profileData = latestSnap.exists() ? latestSnap.data() : {};
+        let latestSnap = await getDoc(userRef);
+        let profileData = latestSnap.exists() ? latestSnap.data() : {};
+        const isAllowlistedAdmin = ADMIN_EMAILS.includes((currentUser.email || '').toLowerCase());
+
+        if (isAllowlistedAdmin && profileData.role !== 'admin') {
+          await setDoc(userRef, {
+            role: 'admin',
+            updatedAt: serverTimestamp(),
+          }, { merge: true });
+          latestSnap = await getDoc(userRef);
+          profileData = latestSnap.exists() ? latestSnap.data() : profileData;
+        }
 
         const sessionUser = {
           uid: currentUser.uid,

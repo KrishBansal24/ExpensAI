@@ -1,42 +1,31 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { AdminDataProvider } from './context/AdminDataContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { Toaster } from 'react-hot-toast';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import TopNav from './components/TopNav';
-import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Employees from './pages/Employees';
-import Transactions from './pages/Transactions';
-import Analytics from './pages/Analytics';
 
-function AdminLayout({ children }) {
-  return (
-    <div className="app-container">
-      <Sidebar />
-      <main className="main-content">
-        <TopNav />
-        {children}
-      </main>
-    </div>
-  );
+// Pages
+import Dashboard from './pages/Dashboard';
+import Expenses from './pages/Expenses';
+import Login from './pages/Login';
+import Employees from './pages/Employees';
+
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div>Authenticating...</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
 }
 
-function AppRoutes() {
-  const { user } = useAuth();
-  
+function DashboardLayout({ children }) {
   return (
-    <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/" element={<ProtectedRoute><AdminLayout><Dashboard /></AdminLayout></ProtectedRoute>} />
-      <Route path="/employees" element={<ProtectedRoute><AdminLayout><Employees /></AdminLayout></ProtectedRoute>} />
-      <Route path="/transactions" element={<ProtectedRoute><AdminLayout><Transactions /></AdminLayout></ProtectedRoute>} />
-      <Route path="/analytics" element={<ProtectedRoute><AdminLayout><Analytics /></AdminLayout></ProtectedRoute>} />
-      <Route path="/expenses" element={<Navigate to="/transactions" replace />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <div className="layout">
+      <Sidebar />
+      <div className="main-content">
+        <TopNav />
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -44,21 +33,31 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AdminDataProvider>
-          <BrowserRouter>
-            <AppRoutes />
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                style: {
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-surface)',
-                  color: 'var(--color-text)',
-                },
-              }}
-            />
-          </BrowserRouter>
-        </AdminDataProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            
+            <Route path="/" element={
+              <ProtectedRoute>
+                <DashboardLayout><Dashboard /></DashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/expenses" element={
+              <ProtectedRoute>
+                <DashboardLayout><Expenses /></DashboardLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/employees" element={
+              <ProtectedRoute>
+                <DashboardLayout><Employees /></DashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
   );

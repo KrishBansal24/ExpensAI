@@ -1,49 +1,40 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, runTransaction, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatCurrency, timeAgo } from '../utils';
-import { IoDownloadOutline } from 'react-icons/io5';
+import { IoDownloadOutline, IoEyeOutline, IoCloseOutline, IoCheckmarkCircleOutline, IoCloseCircleOutline, IoLocationOutline, IoCameraOutline, IoCardOutline } from 'react-icons/io5';
 
 export default function Expenses() {
-  const [transactions, setTransactions] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [selectedUserId, setSelectedUserId] = useState('');
-  const [budgetAmount, setBudgetAmount] = useState('50000');
-  const [filter, setFilter] = useState('all'); 
+  const [expenses, setExpenses] = useState([]);
+  const [filter, setFilter] = useState('pending'); 
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  
+  // Modal State
+  const [selectedExpense, setSelectedExpense] = useState(null);
 
   useEffect(() => {
-    const unsubTransactions = onSnapshot(collection(db, 'transactions'), (snapshot) => {
-      const liveData = snapshot.docs
-        .map((docItem) => ({ id: docItem.id, ...docItem.data() }))
-        .sort((a, b) => Date.parse(b?.timestamp || 0) - Date.parse(a?.timestamp || 0));
-      setTransactions(liveData);
+    const q = query(
+      collection(db, 'expenses'),
+      orderBy('date', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const liveData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setExpenses(liveData);
       setLoading(false);
     }, (error) => {
-      console.error('Transactions sync error:', error);
+      console.error("Expenses sync error:", error);
       setLoading(false);
     });
 
-    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const liveUsers = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
-      setUsers(liveUsers);
-      if (!selectedUserId && liveUsers.length > 0) {
-        setSelectedUserId(liveUsers[0].id);
-      }
-    }, (error) => {
-      console.error('Users sync error:', error);
-    });
-
-    return () => {
-      unsubTransactions();
-      unsubUsers();
-    };
-  }, [selectedUserId]);
+    return unsubscribe;
+  }, []);
 
   const handleApprove = async (id) => {
     try {
-      await setDoc(doc(db, 'transactions', id), { status: 'approved' }, { merge: true });
+      await updateDoc(doc(db, 'expenses', id), { status: 'approved' });
+      if (selectedExpense?.id === id) setSelectedExpense({...selectedExpense, status: 'approved'});
     } catch (err) {
       console.error("Approve failed:", err);
     }
@@ -51,213 +42,193 @@ export default function Expenses() {
 
   const handleReject = async (id) => {
     try {
-      const txRef = doc(db, 'transactions', id);
-      await runTransaction(db, async (transaction) => {
-        const txSnap = await transaction.get(txRef);
-        if (!txSnap.exists()) {
-          throw new Error('Transaction not found');
-        }
-        const txData = txSnap.data();
-        if (txData.status === 'rejected') {
-          return;
-        }
-
-        transaction.set(txRef, { status: 'rejected' }, { merge: true });
-
-        const userRef = doc(db, 'users', txData.userId);
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) {
-          return;
-        }
-
-        const userData = userSnap.data();
-        const amount = Number(txData.amount || 0);
-        transaction.set(userRef, {
-          walletBalance: Number(userData.walletBalance || 0) + amount,
-          walletSpent: Math.max(Number(userData.walletSpent || 0) - amount, 0),
-        }, { merge: true });
-      });
+      await updateDoc(doc(db, 'expenses', id), { status: 'rejected' });
+      if (selectedExpense?.id === id) setSelectedExpense({...selectedExpense, status: 'rejected'});
     } catch (err) {
       console.error("Reject failed:", err);
     }
   };
 
-  const assignBudget = async () => {
-    const parsed = Number(budgetAmount);
-    if (!selectedUserId || !Number.isFinite(parsed) || parsed <= 0) {
-      return;
-    }
-
-    try {
-      await setDoc(doc(db, 'users', selectedUserId), {
-        walletAssigned: parsed,
-        walletBalance: parsed,
-        walletSpent: 0,
-        period: new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' }),
-      }, { merge: true });
-    } catch (error) {
-      console.error('Assign budget failed:', error);
-    }
-  };
-
   const exportToCSV = () => {
-    if (transactions.length === 0) return;
-    
-    // Create CSV header
-    const headers = ['ID', 'Employee Name', 'Category', 'Amount', 'Payment Mode', 'Status', 'Timestamp', 'Latitude', 'Longitude'];
-    
-    // Map data to rows
-    const rows = transactions.map(tx => [
-      tx.id,
-      `"${tx.userName || 'Employee'}"`,
-      `"${tx.category || 'general'}"`,
-      tx.amount,
-      tx.paymentMode || 'UPI',
-      tx.status,
-      `"${tx.timestamp || ''}"`,
-      tx.location?.lat ?? '',
-      tx.location?.lng ?? ''
+    if (expenses.length === 0) return;
+    const headers = ['ID', 'Employee Name', 'Merchant', 'Category', 'Amount', 'Date', 'Status', 'Location', 'UPI ID'];
+    const rows = expenses.map(exp => [
+      exp.id, `"${exp.userName || 'Employee'}"`, `"${exp.vendor}"`, `"${exp.category || 'general'}"`,
+      exp.amount, `"${new Date(exp.date).toLocaleDateString()}"`, exp.status,
+      `"${exp.locationString || 'Unknown'}"`, `"${exp.upiIdScanned || 'N/A'}"`
     ]);
     
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(','), ...rows.map(e => e.join(','))].join("\n");
-      
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(e => e.join(','))].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `expensai_report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `expensai_report.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const filteredTransactions = transactions.filter(e => {
+  const filteredExpenses = expenses.filter(e => {
     const matchesFilter = filter === 'all' || e.status === filter;
-    const matchesSearch = (e.category || '').toLowerCase().includes(search.toLowerCase()) || 
+    const matchesSearch = (e.vendor || '').toLowerCase().includes(search.toLowerCase()) || 
                           (e.userName || '').toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
   return (
-    <div className="page-container">
-      <div className="card" style={{ marginBottom: '24px' }}>
-        <h2 style={{ marginBottom: '12px' }}>Wallet Management</h2>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} style={{ padding: '8px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)' }}>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>{user.name || user.email || user.id}</option>
-            ))}
-          </select>
-          <input
-            type="number"
-            value={budgetAmount}
-            onChange={(e) => setBudgetAmount(e.target.value)}
-            placeholder="Assigned budget"
-            style={{ padding: '8px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)' }}
-          />
-          <button onClick={assignBudget} className="btn btn-primary">Assign Budget</button>
-        </div>
-      </div>
-
+    <div className="page-container relative">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1>UPI Transactions</h1>
+        <h1>Manual Verification Queue</h1>
         
         <div style={{ display: 'flex', gap: '16px' }}>
-          <input 
-            type="text"
-            placeholder="Search category or employee..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              padding: '8px 12px', borderRadius: 'var(--radius-md)', 
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-surface)', color: 'var(--color-text)',
-              width: '250px'
-            }}
+          <input type="text" placeholder="Search vendor or employee..." value={search} onChange={(e) => setSearch(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', width: '250px' }}
           />
-          <select 
-            value={filter} 
-            onChange={(e) => setFilter(e.target.value)}
-            style={{ 
-              padding: '8px 12px', borderRadius: 'var(--radius-md)', 
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-surface)', color: 'var(--color-text)'
-            }}
-          >
-            <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)' }}>
+            <option value="pending">Needs Review (Pending)</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
+            <option value="all">All Statuses</option>
           </select>
           <button onClick={exportToCSV} className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <IoDownloadOutline /> Export CSV
+            <IoDownloadOutline /> Export
           </button>
         </div>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? (
-          <div style={{ padding: '48px', textAlign: 'center' }}>Loading database...</div>
+          <div style={{ padding: '48px', textAlign: 'center' }}>Syncing database...</div>
         ) : (
           <table className="data-table">
             <thead>
               <tr>
-                <th>ID</th>
+                <th>Date</th>
                 <th>Employee</th>
-                <th>Category</th>
+                <th>Merchant</th>
                 <th>Amount</th>
-                <th>Location</th>
                 <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+                <th style={{ textAlign: 'center' }}>Details</th>
               </tr>
             </thead>
             <tbody>
-              {filteredTransactions.map(exp => (
-                <tr key={exp.id}>
-                  <td style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontFamily: 'monospace' }}>
-                    {exp.id.slice(0, 8)}...
+              {filteredExpenses.map(exp => (
+                <tr key={exp.id} className={exp.status === 'pending' ? 'row-highlight' : ''}>
+                  <td style={{ fontSize: '0.875rem' }}>
+                     <div>{new Date(exp.date).toLocaleDateString()}</div>
+                     <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>{timeAgo(exp.date)}</div>
                   </td>
                   <td>
                     <div style={{ fontWeight: 500 }}>{exp.userName || 'Employee'}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                      {exp.userId?.slice(0,8)}
-                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>UID: {exp.userId?.slice(0,6)}</div>
                   </td>
                   <td>
-                    <div style={{ fontWeight: 500 }}>{exp.category || 'General'}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'capitalize' }}>
-                      {exp.paymentMode || 'UPI'} • {timeAgo(exp.timestamp)}
-                    </div>
+                     <div style={{ fontWeight: 500 }}>{exp.vendor}</div>
+                     <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}><IoLocationOutline style={{transform:'translateY(2px)'}}/> {exp.locationString?.split(',')[0] || 'Unknown City'}</div>
                   </td>
                   <td style={{ fontWeight: 600 }}>{formatCurrency(exp.amount)}</td>
-                  <td style={{ fontSize: '0.875rem' }}>
-                    {exp.location?.lat ? `${exp.location.lat.toFixed(5)}, ${exp.location.lng.toFixed(5)}` : 'N/A'}
-                  </td>
                   <td><span className={`status-badge status-${exp.status}`}>{exp.status}</span></td>
-                  <td style={{ textAlign: 'right' }}>
-                    {exp.status === 'pending' ? (
-                      <div className="action-buttons" style={{ justifyContent: 'flex-end' }}>
-                        <button onClick={() => handleApprove(exp.id)} className="btn btn-outline" style={{ color: 'var(--color-success)', borderColor: 'var(--color-success)', padding: '4px 8px', fontSize: '0.75rem' }}>Approve</button>
-                        <button onClick={() => handleReject(exp.id)} className="btn btn-outline" style={{ color: 'var(--color-danger)', borderColor: 'var(--color-danger)', padding: '4px 8px', fontSize: '0.75rem' }}>Reject</button>
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Processed</span>
-                    )}
+                  <td style={{ textAlign: 'center' }}>
+                     <button onClick={() => setSelectedExpense(exp)} className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <IoEyeOutline size={16} /> Review
+                     </button>
                   </td>
                 </tr>
               ))}
-              
-              {filteredTransactions.length === 0 && (
-                <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '48px', color: 'var(--color-text-secondary)' }}>
-                    No transactions found.
-                  </td>
-                </tr>
+              {filteredExpenses.length === 0 && (
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: 'var(--color-text-secondary)' }}>No expenses match criteria.</td></tr>
               )}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* DETAILED VERIFICATION MODAL */}
+      {selectedExpense && (
+         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+            <div className="card" style={{ width: '900px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: 0 }}>
+               
+               {/* Modal Header */}
+               <div style={{ padding: '24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--color-surface-hover)' }}>
+                  <h2 style={{ margin: 0 }}>Verification: {selectedExpense.userName}</h2>
+                  <button onClick={() => setSelectedExpense(null)} style={{ background: 'none', border: 'none', color: 'var(--color-text)', cursor: 'pointer' }}><IoCloseOutline size={32}/></button>
+               </div>
+
+               {/* Modal Body */}
+               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', padding: '32px' }}>
+                  
+                  {/* Left Column: Image */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><IoCameraOutline size={20}/> Scanned Receipt</h3>
+                     <div style={{ width: '100%', height: '400px', backgroundColor: '#e2e8f0', borderRadius: '12px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {selectedExpense.receiptImage ? (
+                           <img src={selectedExpense.receiptImage} alt="Receipt" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        ) : (
+                           <div style={{ color: '#64748b' }}>No receipt image provided.</div>
+                        )}
+                     </div>
+                  </div>
+
+                  {/* Right Column: Details & UPI */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                     
+                     <div style={{ padding: '24px', backgroundColor: 'var(--color-surface-hover)', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+                        <h3 style={{ marginBottom: '16px' }}>AI Extracted Data</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                           <span style={{ color: 'var(--color-text-secondary)' }}>Merchant:</span>
+                           <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{selectedExpense.vendor}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                           <span style={{ color: 'var(--color-text-secondary)' }}>Amount Claimed:</span>
+                           <span style={{ fontWeight: 'bold', fontSize: '1.5rem', color: 'var(--color-primary)' }}>{formatCurrency(selectedExpense.amount)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                           <span style={{ color: 'var(--color-text-secondary)' }}>Extracted Date:</span>
+                           <span>{new Date(selectedExpense.date).toLocaleString()}</span>
+                        </div>
+                     </div>
+
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><IoLocationOutline size={20}/> GPS Tag</h3>
+                        <div style={{ padding: '16px', background: 'var(--color-surface-hover)', borderRadius: '8px', fontSize: '0.875rem' }}>
+                           {selectedExpense.locationString || "Location not captured during submission."}
+                        </div>
+                     </div>
+
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><IoCardOutline size={20}/> UPI Transaction Match</h3>
+                        <div style={{ padding: '16px', background: 'var(--color-surface-hover)', borderRadius: '8px', borderLeft: '4px solid #8b5cf6' }}>
+                           <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Scanned Merchant UPI ID:</div>
+                           <div style={{ fontFamily: 'monospace', fontSize: '1.1rem' }}>{selectedExpense.upiIdScanned || "Not Paid via App QR Scanner"}</div>
+                           {selectedExpense.notes && <div style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Notes: {selectedExpense.notes}</div>}
+                        </div>
+                     </div>
+
+                  </div>
+               </div>
+
+               {/* Modal Footer (Actions) */}
+               <div style={{ padding: '24px 32px', borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', display: 'flex', justifyContent: 'flex-end', gap: '16px', alignItems: 'center' }}>
+                  {selectedExpense.status === 'pending' ? (
+                     <>
+                        <span style={{ marginRight: 'auto', fontWeight: 500, color: 'var(--color-warning)' }}>Review Required</span>
+                        <button onClick={() => handleReject(selectedExpense.id)} className="btn btn-outline" style={{ borderColor: 'var(--color-danger)', color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px' }}>
+                           <IoCloseCircleOutline size={20}/> Reject Claim
+                        </button>
+                        <button onClick={() => handleApprove(selectedExpense.id)} className="btn btn-primary" style={{ backgroundColor: 'var(--color-success)', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px' }}>
+                           <IoCheckmarkCircleOutline size={20}/> Authenticate & Approve
+                        </button>
+                     </>
+                  ) : (
+                     <span className={`status-badge status-${selectedExpense.status}`} style={{ fontSize: '1rem', padding: '8px 16px' }}>
+                        Previously {selectedExpense.status.toUpperCase()}
+                     </span>
+                  )}
+               </div>
+
+            </div>
+         </div>
+      )}
     </div>
   );
 }

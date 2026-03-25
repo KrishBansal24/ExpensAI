@@ -107,6 +107,17 @@ export function AdminDataProvider({ children }) {
     await deleteDoc(doc(db, 'users', employeeId));
   }, []);
 
+  const setUserRole = useCallback(async ({ userId, role }) => {
+    if (!['admin', 'employee', 'manager'].includes(role)) {
+      throw new Error('Invalid role');
+    }
+
+    await setDoc(doc(db, 'users', userId), {
+      role,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  }, []);
+
   const allocateWallet = useCallback(async ({ employeeId, amount, mode = 'set' }) => {
     const safeAmount = Number(amount);
     if (!Number.isFinite(safeAmount) || safeAmount < 0) {
@@ -159,6 +170,10 @@ export function AdminDataProvider({ children }) {
         txRef,
         {
           status,
+          autoDecision: false,
+          decisionSource: 'manual',
+          manualReviewRequired: false,
+          decisionReason: `Manually ${status} by admin review.`,
           reviewedAt: serverTimestamp(),
           reviewedBy: user?.uid || null,
         },
@@ -236,6 +251,7 @@ export function AdminDataProvider({ children }) {
         archiveEmployee,
         deleteEmployeeProfile,
         upsertEmployee,
+        setUserRole,
       }}
     >
       {children}

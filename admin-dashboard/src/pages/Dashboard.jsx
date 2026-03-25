@@ -64,6 +64,7 @@ export default function Dashboard() {
                 <th>Category</th>
                 <th>Amount</th>
                 <th>Status</th>
+                <th>Decision</th>
                 <th>Submitted</th>
               </tr>
             </thead>
@@ -79,12 +80,17 @@ export default function Dashboard() {
                   <td>{exp.category || 'General'}</td>
                   <td style={{ fontWeight: 600 }}>{formatCurrency(exp.amount)}</td>
                   <td><span className={`status-badge status-${exp.status}`}>{exp.status}</span></td>
+                  <td>
+                    <span className={`status-badge ${(exp.decisionSource || (exp.autoDecision ? 'auto' : 'manual')) === 'auto' ? 'status-approved' : 'status-pending'}`}>
+                      {(exp.decisionSource || (exp.autoDecision ? 'auto' : 'manual')) === 'auto' ? 'Auto' : 'Manual'}
+                    </span>
+                  </td>
                   <td style={{ fontSize: '0.875rem' }} title={formatDateTime(exp.timestamp)}>{timeAgo(exp.timestamp)}</td>
                 </tr>
               ))}
               {transactions.length === 0 && (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '32px' }}>No expenses found in database.</td>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '32px' }}>No expenses found in database.</td>
                 </tr>
               )}
             </tbody>

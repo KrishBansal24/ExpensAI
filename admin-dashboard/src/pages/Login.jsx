@@ -1,16 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { FcGoogle } from 'react-icons/fc';
 import { IoFlashOutline } from 'react-icons/io5';
+import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
-  const { login, loginWithGoogle, authError } = useAuth();
+  const { login, loginWithGoogle, authError, user } = useAuth();
+  const navigate = useNavigate();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+       navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

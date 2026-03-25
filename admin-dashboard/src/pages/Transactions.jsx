@@ -15,6 +15,8 @@ const downloadCsv = (rows) => {
     'Amount',
     'Payment Mode',
     'Status',
+    'Decision Source',
+    'Decision Reason',
     'Timestamp',
     'Latitude',
     'Longitude',
@@ -28,6 +30,8 @@ const downloadCsv = (rows) => {
     Number(row.amount || 0),
     row.paymentMode || 'UPI',
     row.status || '',
+    row.decisionSource || (row.autoDecision ? 'auto' : 'manual'),
+    row.decisionReason || '',
     formatDateTime(row.timestamp),
     row.location?.lat ?? '',
     row.location?.lng ?? '',
@@ -48,6 +52,7 @@ export default function Transactions() {
   const [search, setSearch] = useState('');
   const [employee, setEmployee] = useState('all');
   const [status, setStatus] = useState('all');
+  const [decision, setDecision] = useState('all');
   const [category, setCategory] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -60,19 +65,21 @@ export default function Transactions() {
     const query = search.trim().toLowerCase();
     return transactions.filter((row) => {
       const txDate = new Date(row.timestamp);
+      const decisionSource = row.decisionSource || (row.autoDecision ? 'auto' : 'manual');
       const matchesSearch = !query || [row.userName, row.userId, row.category, row.id]
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(query));
       const matchesEmployee = employee === 'all' || row.userId === employee;
       const matchesStatus = status === 'all' || row.status === status;
+      const matchesDecision = decision === 'all' || decisionSource === decision;
       const txCategory = row.category || 'General';
       const matchesCategory = category === 'all' || txCategory === category;
       const matchesStart = !startDate || txDate >= new Date(`${startDate}T00:00:00`);
       const matchesEnd = !endDate || txDate <= new Date(`${endDate}T23:59:59`);
 
-      return matchesSearch && matchesEmployee && matchesStatus && matchesCategory && matchesStart && matchesEnd;
+      return matchesSearch && matchesEmployee && matchesStatus && matchesDecision && matchesCategory && matchesStart && matchesEnd;
     });
-  }, [transactions, search, employee, status, category, startDate, endDate]);
+  }, [transactions, search, employee, status, decision, category, startDate, endDate]);
 
   const processStatus = async (transactionId, nextStatus) => {
     try {
@@ -115,6 +122,12 @@ export default function Transactions() {
             <option value="rejected">Rejected</option>
           </select>
 
+          <select className="field" value={decision} onChange={(event) => setDecision(event.target.value)}>
+            <option value="all">All decisions</option>
+            <option value="auto">Auto</option>
+            <option value="manual">Manual</option>
+          </select>
+
           <select className="field" value={category} onChange={(event) => setCategory(event.target.value)}>
             <option value="all">All categories</option>
             {categories.map((item) => (
@@ -143,12 +156,14 @@ export default function Transactions() {
                 <th>Mode</th>
                 <th>Location</th>
                 <th>Status</th>
+                <th>Decision</th>
                 <th>Timestamp</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((row) => {
+                const decisionSource = row.decisionSource || (row.autoDecision ? 'auto' : 'manual');
                 const mapLink = row.location?.lat != null && row.location?.lng != null
                   ? `https://maps.google.com/?q=${row.location.lat},${row.location.lng}`
                   : null;
@@ -176,6 +191,16 @@ export default function Transactions() {
                     <td>
                       <span className={`status-badge status-${row.status || 'pending'}`}>{row.status || 'pending'}</span>
                     </td>
+                    <td>
+                      <div>
+                        <span className={`status-badge ${decisionSource === 'auto' ? 'status-approved' : 'status-pending'}`}>
+                          {decisionSource === 'auto' ? 'Auto' : 'Manual'}
+                        </span>
+                      </div>
+                      <div className="muted-text" style={{ marginTop: 6, maxWidth: 280 }}>
+                        {row.decisionReason || (row.status === 'pending' ? 'Pending manual review.' : 'Reviewed by admin.')}
+                      </div>
+                    </td>
                     <td>{formatDateTime(row.timestamp)}</td>
                     <td style={{ textAlign: 'right' }}>
                       {row.status === 'pending' ? (
@@ -192,7 +217,7 @@ export default function Transactions() {
               })}
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="empty-state-cell">No transactions match the selected filters.</td>
+                  <td colSpan={10} className="empty-state-cell">No transactions match the selected filters.</td>
                 </tr>
               ) : null}
             </tbody>

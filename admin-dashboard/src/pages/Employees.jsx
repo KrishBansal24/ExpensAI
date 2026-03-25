@@ -1,208 +1,96 @@
-import { useMemo, useState } from 'react';
-import toast from 'react-hot-toast';
-import { useAdminData } from '../context/AdminDataContext';
-import { formatCurrency, shortId } from '../utils';
-
-const INITIAL_FORM = {
-  uid: '',
-  name: '',
-  email: '',
-  department: '',
-};
+import { useState, useEffect } from 'react';
+import { collection, query, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { formatCurrency } from '../utils';
 
 export default function Employees() {
-  const { users, allocateWallet, upsertEmployee, archiveEmployee } = useAdminData();
-  const [search, setSearch] = useState('');
-  const [selectedId, setSelectedId] = useState('');
-  const [amount, setAmount] = useState('50000');
-  const [mode, setMode] = useState('set');
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState(INITIAL_FORM);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState(null);
+  const [newBudget, setNewBudget] = useState('');
 
-  const employees = useMemo(
-    () => users.filter((row) => (row.role || 'employee') === 'employee' && row.active !== false),
-    [users],
-  );
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return employees;
-
-    return employees.filter((row) => {
-      return [row.name, row.email, row.department, row.uid]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(q));
+  useEffect(() => {
+    const q = query(collection(db, 'users'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setEmployees(data.filter(u => u.role !== 'manager')); // only show employees
+      setLoading(false);
     });
-  }, [employees, search]);
+    return unsubscribe;
+  }, []);
 
-  const onAllocate = async () => {
-    if (!selectedId) {
-      toast.error('Select an employee first.');
-      return;
-    }
-
+  const handleUpdateBudget = async (id) => {
     try {
-      await allocateWallet({ employeeId: selectedId, amount, mode });
-      toast.success(mode === 'add' ? 'Wallet topped up.' : 'Wallet allocation updated.');
-    } catch (error) {
-      toast.error(error.message || 'Could not update wallet.');
+      await updateDoc(doc(db, 'users', id), { budgetAllocated: parseFloat(newBudget) });
+      setEditingId(null);
+    } catch (e) {
+      alert("Failed to update budget.");
+      console.error(e);
     }
   };
 
-  const onCreateEmployee = async (event) => {
-    event.preventDefault();
-    if (!form.uid || !form.email || !form.name) {
-      toast.error('UID, name, and email are required.');
-      return;
-    }
-
-    try {
-      await upsertEmployee({
-        ...form,
-        role: 'employee',
-        active: true,
-        walletAssigned: 0,
-        walletBalance: 0,
-        walletSpent: 0,
-      });
-      setForm(INITIAL_FORM);
-      setCreating(false);
-      toast.success('Employee profile added.');
-    } catch (error) {
-      toast.error(error.message || 'Unable to add employee.');
-    }
-  };
+  if (loading) return <div style={{ padding: '48px', textAlign: 'center' }}>Loading employees...</div>;
 
   return (
     <div className="page-container">
-      <section className="card" style={{ marginBottom: 20 }}>
-        <div className="section-headline">
-          <h1>Employees</h1>
-          <p>Manage employee wallet allocations and profile records synced to mobile app users.</p>
-        </div>
+      <h1 style={{ marginBottom: '24px' }}>Team Management</h1>
 
-        <div className="toolbar-grid">
-          <input
-            className="field"
-            placeholder="Search by name, email, department or uid"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-
-          <select className="field" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
-            <option value="">Select employee for wallet action</option>
-            {employees.map((employee) => (
-              <option key={employee.id} value={employee.id}>
-                {employee.name || employee.email || employee.id}
-              </option>
-            ))}
-          </select>
-
-          <input
-            className="field"
-            type="number"
-            min="0"
-            step="100"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            placeholder="Amount"
-          />
-
-          <select className="field" value={mode} onChange={(event) => setMode(event.target.value)}>
-            <option value="set">Set monthly budget</option>
-            <option value="add">Top up wallet</option>
-          </select>
-
-          <button className="btn btn-primary" onClick={onAllocate}>Apply</button>
-          <button className="btn btn-outline" onClick={() => setCreating((state) => !state)}>
-            {creating ? 'Close form' : 'Add employee'}
-          </button>
-        </div>
-
-        {creating ? (
-          <form className="inline-form" onSubmit={onCreateEmployee}>
-            <input
-              className="field"
-              placeholder="Employee UID (same as Firebase Auth uid)"
-              value={form.uid}
-              onChange={(event) => setForm((state) => ({ ...state, uid: event.target.value.trim() }))}
-            />
-            <input
-              className="field"
-              placeholder="Full name"
-              value={form.name}
-              onChange={(event) => setForm((state) => ({ ...state, name: event.target.value }))}
-            />
-            <input
-              className="field"
-              type="email"
-              placeholder="Email"
-              value={form.email}
-              onChange={(event) => setForm((state) => ({ ...state, email: event.target.value }))}
-            />
-            <input
-              className="field"
-              placeholder="Department"
-              value={form.department}
-              onChange={(event) => setForm((state) => ({ ...state, department: event.target.value }))}
-            />
-            <button className="btn btn-primary" type="submit">Create profile</button>
-          </form>
-        ) : null}
-      </section>
-
-      <section className="card">
-        <div className="table-shell">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Employee</th>
-                <th>UID</th>
-                <th>Department</th>
-                <th>Allocated</th>
-                <th>Spent</th>
-                <th>Balance</th>
-                <th style={{ textAlign: 'right' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((employee) => (
-                <tr key={employee.id}>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{employee.name || 'Employee'}</div>
-                    <div className="muted-text">{employee.email || 'No email'}</div>
-                  </td>
-                  <td className="mono">{shortId(employee.uid || employee.id, 10)}</td>
-                  <td>{employee.department || 'General'}</td>
-                  <td>{formatCurrency(employee.walletAssigned || 0)}</td>
-                  <td>{formatCurrency(employee.walletSpent || 0)}</td>
-                  <td>{formatCurrency(employee.walletBalance || 0)}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button
-                      className="btn btn-danger-text"
-                      onClick={async () => {
-                        try {
-                          await archiveEmployee(employee.id);
-                          toast.success('Employee archived.');
-                        } catch (error) {
-                          toast.error(error.message || 'Could not archive profile.');
-                        }
-                      }}
-                    >
-                      Archive
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Employee Name</th>
+              <th>Department</th>
+              <th>Contact / UPI</th>
+              <th>Allocated Monthly Budget</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {employees.map(emp => (
+              <tr key={emp.id}>
+                <td>
+                  <div style={{ fontWeight: 500 }}>{emp.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{emp.email}</div>
+                </td>
+                <td>{emp.department || 'Unassigned'}</td>
+                <td>
+                  <div>{emp.phone || 'N/A'}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>{emp.upiId}</div>
+                </td>
+                <td style={{ fontWeight: 600 }}>
+                  {editingId === emp.id ? (
+                    <input 
+                      type="number" 
+                      value={newBudget} 
+                      onChange={(e) => setNewBudget(e.target.value)}
+                      style={{ padding: '4px', width: '100px' }}
+                      autoFocus
+                    />
+                  ) : (
+                    formatCurrency(emp.budgetAllocated || 0)
+                  )}
+                </td>
+                <td>
+                  {editingId === emp.id ? (
+                    <div className="action-buttons">
+                      <button className="btn btn-outline" style={{ color: 'var(--color-success)', borderColor: 'var(--color-success)'}} onClick={() => handleUpdateBudget(emp.id)}>Save</button>
+                      <button className="btn btn-outline" onClick={() => setEditingId(null)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <button className="btn btn-outline" onClick={() => { setEditingId(emp.id); setNewBudget(emp.budgetAllocated || 0); }}>
+                      Edit Budget
                     </button>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="empty-state-cell">No employees found for this filter.</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {employees.length === 0 && (
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '32px' }}>No employees found. Register a user via the Mobile App.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
