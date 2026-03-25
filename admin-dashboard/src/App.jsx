@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AdminDataProvider } from './context/AdminDataContext';
 import Sidebar from './components/Sidebar';
 import TopNav from './components/TopNav';
 
@@ -33,31 +34,33 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            
-            <Route path="/" element={
-              <ProtectedRoute>
-                <DashboardLayout><Dashboard /></DashboardLayout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/expenses" element={
-              <ProtectedRoute>
-                <DashboardLayout><Expenses /></DashboardLayout>
-              </ProtectedRoute>
-            } />
+        <AdminDataProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <DashboardLayout><Dashboard /></DashboardLayout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/expenses" element={
+                <ProtectedRoute>
+                  <DashboardLayout><Expenses /></DashboardLayout>
+                </ProtectedRoute>
+              } />
 
-            <Route path="/employees" element={
-              <ProtectedRoute>
-                <DashboardLayout><Employees /></DashboardLayout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
+              <Route path="/employees" element={
+                <ProtectedRoute>
+                  <DashboardLayout><Employees /></DashboardLayout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </AdminDataProvider>
       </AuthProvider>
     </ThemeProvider>
   );
