@@ -59,15 +59,12 @@ export function AuthProvider({ children }) {
         const userSnap = await getDoc(userRef);
 
         if (!userSnap.exists()) {
-          const normalizedEmail = (currentUser.email || '').toLowerCase();
-          const existingUsers = await getDocs(query(collection(db, 'users'), limit(1)));
-          const defaultRole = (existingUsers.empty || ADMIN_EMAILS.includes(normalizedEmail)) ? 'admin' : 'employee';
-
+          // Anyone logging into the Admin Dashboard gets admin role automatically
           await setDoc(userRef, {
             uid: currentUser.uid,
             name: currentUser.displayName || currentUser.email || 'User',
             email: currentUser.email || '',
-            role: defaultRole,
+            role: 'admin',
             active: true,
             walletAssigned: 0,
             walletBalance: 0,
@@ -75,20 +72,16 @@ export function AuthProvider({ children }) {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           }, { merge: true });
-        }
-
-        let latestSnap = await getDoc(userRef);
-        let profileData = latestSnap.exists() ? latestSnap.data() : {};
-        const isAllowlistedAdmin = ADMIN_EMAILS.includes((currentUser.email || '').toLowerCase());
-
-        if (isAllowlistedAdmin && profileData.role !== 'admin') {
+        } else if (userSnap.data().role !== 'admin') {
+          // If user already exists but isn't admin, promote them (they're logging in via admin dashboard)
           await setDoc(userRef, {
             role: 'admin',
             updatedAt: serverTimestamp(),
           }, { merge: true });
-          latestSnap = await getDoc(userRef);
-          profileData = latestSnap.exists() ? latestSnap.data() : profileData;
         }
+
+        let latestSnap = await getDoc(userRef);
+        let profileData = latestSnap.exists() ? latestSnap.data() : {};
 
         const sessionUser = {
           uid: currentUser.uid,
