@@ -10,6 +10,9 @@ import Dashboard from './pages/Dashboard';
 import Expenses from './pages/Expenses';
 import Login from './pages/Login';
 import Employees from './pages/Employees';
+import FraudDashboard from './pages/FraudDashboard';
+import FraudSettings from './pages/FraudSettings';
+import BudgetAllocation from './pages/BudgetAllocation';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -54,6 +57,24 @@ export default function App() {
               <Route path="/employees" element={
                 <ProtectedRoute>
                   <DashboardLayout><Employees /></DashboardLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/fraud" element={
+                <ProtectedRoute>
+                  <DashboardLayout><FraudDashboard /></DashboardLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/fraud-settings" element={
+                <ProtectedRoute>
+                  <DashboardLayout><FraudSettings /></DashboardLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/budget-allocation" element={
+                <ProtectedRoute>
+                  <DashboardLayout><BudgetAllocation /></DashboardLayout>
                 </ProtectedRoute>
               } />
               

@@ -32,9 +32,10 @@ service cloud.firestore {
       allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isManager());
       
       // Employees can create expenses for themselves
+      // (includes fraud analysis fields computed at submission time)
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
-      // Employees can edit pending expenses, Managers can update status
+      // Employees can edit pending expenses, Managers can update status + fraud fields
       allow update: if request.auth != null && (
         (resource.data.userId == request.auth.uid && resource.data.status == 'pending') || 
         isManager()
@@ -56,6 +57,15 @@ service cloud.firestore {
 
       // No deletes in demo flow
       allow delete: if false;
+    }
+
+    // Global fraud settings and company policy config
+    match /fraudSettings/{settingsId} {
+      // Authenticated users can read active policy/mode for client-side scoring.
+      allow read: if request.auth != null;
+
+      // Only managers/admins can edit thresholds, weights, verification mode, and policy rules.
+      allow create, update, delete: if request.auth != null && isManager();
     }
   }
 }

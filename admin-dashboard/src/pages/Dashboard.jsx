@@ -49,9 +49,9 @@ export default function Dashboard() {
         <MetricCard title="Total transactions" value={totals.transactionCount} subtitle="All UPI submissions" />
         <MetricCard title="Pending review" value={totals.pendingCount} subtitle="Manager action required" accent="var(--color-warning)" />
         <MetricCard title="Approved spend" value={formatCurrency(totals.approvedAmount)} subtitle="Across all employees" accent="var(--color-success)" />
+        <MetricCard title="Flagged expenses" value={totals.flaggedCount || 0} subtitle={`${totals.fraudCount || 0} fraud · ${totals.reviewCount || 0} review`} accent="var(--color-danger)" />
         <MetricCard title="Wallet assigned" value={formatCurrency(totals.totalAssigned)} subtitle="Current active cycle" />
         <MetricCard title="Wallet balance" value={formatCurrency(totals.totalBalance)} subtitle="Remaining funds" accent="var(--color-secondary)" />
-        <MetricCard title="Wallet spent" value={formatCurrency(totals.totalSpent)} subtitle="Real-time from user profiles" accent="var(--color-danger)" />
       </section>
 
       <section className="dashboard-grid">

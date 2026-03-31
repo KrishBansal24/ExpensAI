@@ -1,5 +1,13 @@
 import { NavLink } from 'react-router-dom';
-import { IoGridOutline, IoReceiptOutline, IoLogOutOutline, IoPeopleOutline } from 'react-icons/io5';
+import {
+  IoGridOutline,
+  IoLogOutOutline,
+  IoPeopleOutline,
+  IoReceiptOutline,
+  IoSettingsOutline,
+  IoShieldCheckmarkOutline,
+  IoWalletOutline,
+} from 'react-icons/io5';
 import { useAuth } from '../context/AuthContext';
 
 export default function Sidebar() {
@@ -22,6 +30,18 @@ export default function Sidebar() {
         <NavLink to="/expenses" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
           <IoReceiptOutline size={20} />
           <span>Expenses</span>
+        </NavLink>
+        <NavLink to="/fraud" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+          <IoShieldCheckmarkOutline size={20} />
+          <span>Fraud Monitor</span>
+        </NavLink>
+        <NavLink to="/fraud-settings" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+          <IoSettingsOutline size={20} />
+          <span>Fraud Settings</span>
+        </NavLink>
+        <NavLink to="/budget-allocation" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
+          <IoWalletOutline size={20} />
+          <span>Budget Allocation</span>
         </NavLink>
         <NavLink to="/employees" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
           <IoPeopleOutline size={20} />

@@ -551,3 +551,322 @@ h3 {
     padding: 10px 8px;
   }
 }
+
+/* ============================================
+   FRAUD DETECTION STYLES
+   ============================================ */
+
+/* Fraud Status Badges */
+.fraud-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: 0.02em;
+}
+
+.fraud-safe {
+  background: color-mix(in srgb, var(--color-success) 14%, transparent);
+  color: var(--color-success);
+  border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent);
+}
+
+.fraud-review {
+  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
+}
+
+.fraud-fraud {
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  color: var(--color-danger);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 25%, transparent);
+  animation: fraud-pulse 2s ease-in-out infinite;
+}
+
+.fraud-unanalyzed {
+  background: color-mix(in srgb, var(--color-text-secondary) 12%, transparent);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+@keyframes fraud-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+/* Risk Meter */
+.risk-meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.risk-meter-track {
+  flex: 1;
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 999px;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.risk-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+.risk-meter-label {
+  font-weight: 700;
+  font-size: 0.8rem;
+  min-width: 48px;
+  text-align: right;
+}
+
+/* Risk Score Circle */
+.risk-score-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 4px solid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.risk-score-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.risk-score-label {
+  font-size: 0.65rem;
+  color: var(--color-text-secondary);
+}
+
+/* Table Row Highlighting */
+.row-fraud {
+  background: color-mix(in srgb, var(--color-danger) 6%, transparent) !important;
+  border-left: 3px solid var(--color-danger);
+}
+
+.row-review {
+  background: color-mix(in srgb, var(--color-warning) 5%, transparent) !important;
+  border-left: 3px solid var(--color-warning);
+}
+
+/* Fraud Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.fraud-modal {
+  width: 800px;
+  max-width: 92vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 0 !important;
+}
+
+.fraud-modal-header {
+  padding: 24px 28px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-surface-hover);
+}
+
+.fraud-modal-body {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.fraud-modal-footer {
+  padding: 20px 28px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-hover);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.fraud-section {
+  padding: 20px;
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.fraud-section h3 {
+  margin-bottom: 14px;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fraud-reason-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+.fraud-info-box {
+  padding: 14px;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.fraud-explanation {
+  background: var(--color-surface);
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  font-family: var(--font-family);
+  font-size: 0.85rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: var(--color-text);
+  margin: 0;
+}
+
+/* Sidebar logo style fix */
+.sidebar-logo {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nav-item span {
+  margin-left: 10px;
+}
+
+/* ============================================
+   FRAUD SETTINGS + BUDGET ALLOCATION
+   ============================================ */
+
+.fraud-settings-hero {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 52%),
+    linear-gradient(30deg, color-mix(in srgb, var(--color-secondary) 12%, transparent), transparent 56%),
+    var(--color-surface);
+}
+
+.fraud-settings-hero-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-primary);
+  font-size: 1.02rem;
+}
+
+.fraud-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.fraud-settings-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mode-pill-group {
+  display: inline-flex;
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 6px;
+}
+
+.mode-pill {
+  border: 0;
+  min-height: 34px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.mode-pill.active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.weight-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.weight-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 56px;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.weight-row input[type='range'] {
+  accent-color: var(--color-primary);
+}
+
+.budget-allocation-table td {
+  min-width: 104px;
+}
+
+.budget-allocation-table th:first-child,
+.budget-allocation-table td:first-child {
+  min-width: 220px;
+}
+
+.budget-cell-input {
+  min-width: 100px;
+  padding: 8px 10px;
+}
+
+@media (max-width: 980px) {
+  .fraud-settings-grid,
+  .fraud-settings-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .weight-row {
+    grid-template-columns: 1fr;
+  }
+}

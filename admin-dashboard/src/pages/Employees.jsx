@@ -8,6 +8,8 @@ export default function Employees() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [newBudget, setNewBudget] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [sortBy, setSortBy] = useState('latest');
 
   const getUserTimestamp = (user) => {
     const raw = user?.createdAt || user?.date || user?.updatedAt;
@@ -22,16 +24,29 @@ export default function Employees() {
     const q = query(collection(db, 'users'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Show employees newest first based on available timestamp fields.
-      const sortedEmployees = data
-        .filter((u) => u.role !== 'manager')
-        .sort((a, b) => getUserTimestamp(b) - getUserTimestamp(a));
-
-      setEmployees(sortedEmployees);
+      const employeeRows = data.filter((u) => u.role !== 'manager');
+      setEmployees(employeeRows);
       setLoading(false);
     });
     return unsubscribe;
   }, []);
+
+  const liveSearch = searchInput.trim().toLowerCase();
+
+  const visibleEmployees = [...employees]
+    .filter((emp) => {
+      if (!liveSearch) return true;
+      return [emp.name, emp.email, emp.department, emp.upiId, emp.phone]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(liveSearch));
+    })
+    .sort((a, b) => {
+      if (sortBy === 'latest') return getUserTimestamp(b) - getUserTimestamp(a);
+      if (sortBy === 'oldest') return getUserTimestamp(a) - getUserTimestamp(b);
+      if (sortBy === 'name-az') return String(a.name || '').localeCompare(String(b.name || ''));
+      if (sortBy === 'name-za') return String(b.name || '').localeCompare(String(a.name || ''));
+      return 0;
+    });
 
   const handleUpdateBudget = async (id) => {
     try {
@@ -65,6 +80,24 @@ export default function Employees() {
     <div className="page-container">
       <h1 style={{ marginBottom: '24px' }}>Team Management</h1>
 
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+          <input
+            type="text"
+            className="field"
+            placeholder="Search by name, email, department, phone, or UPI"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+          <select className="field" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="latest">Latest Added</option>
+            <option value="oldest">Oldest Added</option>
+            <option value="name-az">Name A-Z</option>
+            <option value="name-za">Name Z-A</option>
+          </select>
+        </div>
+      </div>
+
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <table className="data-table">
           <thead>
@@ -77,7 +110,7 @@ export default function Employees() {
             </tr>
           </thead>
           <tbody>
-            {employees.map(emp => (
+            {visibleEmployees.map(emp => (
               <tr key={emp.id}>
                 <td>
                   <div style={{ fontWeight: 500 }}>{emp.name}</div>
@@ -115,7 +148,7 @@ export default function Employees() {
                 </td>
               </tr>
             ))}
-            {employees.length === 0 && (
+            {visibleEmployees.length === 0 && (
               <tr><td colSpan={5} style={{ textAlign: 'center', padding: '32px' }}>No employees found. Register a user via the Mobile App.</td></tr>
             )}
           </tbody>
