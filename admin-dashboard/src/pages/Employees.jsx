@@ -9,11 +9,25 @@ export default function Employees() {
   const [editingId, setEditingId] = useState(null);
   const [newBudget, setNewBudget] = useState('');
 
+  const getUserTimestamp = (user) => {
+    const raw = user?.createdAt || user?.date || user?.updatedAt;
+    if (raw && typeof raw === 'object' && typeof raw.seconds === 'number') {
+      return raw.seconds * 1000;
+    }
+    const parsed = Date.parse(raw || '');
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
   useEffect(() => {
     const q = query(collection(db, 'users'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setEmployees(data.filter(u => u.role !== 'manager')); // only show employees
+      // Show employees newest first based on available timestamp fields.
+      const sortedEmployees = data
+        .filter((u) => u.role !== 'manager')
+        .sort((a, b) => getUserTimestamp(b) - getUserTimestamp(a));
+
+      setEmployees(sortedEmployees);
       setLoading(false);
     });
     return unsubscribe;
@@ -21,7 +35,23 @@ export default function Employees() {
 
   const handleUpdateBudget = async (id) => {
     try {
-      await updateDoc(doc(db, 'users', id), { budgetAllocated: parseFloat(newBudget) });
+      const parsedBudget = Number(newBudget);
+      if (!Number.isFinite(parsedBudget) || parsedBudget < 0) {
+        alert('Please enter a valid budget amount.');
+        return;
+      }
+
+      const employee = employees.find((emp) => emp.id === id);
+      const walletSpent = Number(employee?.walletSpent || 0);
+      const walletBalance = Math.max(parsedBudget - walletSpent, 0);
+
+      await updateDoc(doc(db, 'users', id), {
+        walletAssigned: parsedBudget,
+        walletBalance,
+        period: 'Monthly',
+        updatedAt: new Date().toISOString(),
+      });
+
       setEditingId(null);
     } catch (e) {
       alert("Failed to update budget.");
@@ -68,7 +98,7 @@ export default function Employees() {
                       autoFocus
                     />
                   ) : (
-                    formatCurrency(emp.budgetAllocated || 0)
+                    formatCurrency(emp.walletAssigned ?? emp.budgetAllocated ?? 0)
                   )}
                 </td>
                 <td>
@@ -78,7 +108,7 @@ export default function Employees() {
                       <button className="btn btn-outline" onClick={() => setEditingId(null)}>Cancel</button>
                     </div>
                   ) : (
-                    <button className="btn btn-outline" onClick={() => { setEditingId(emp.id); setNewBudget(emp.budgetAllocated || 0); }}>
+                    <button className="btn btn-outline" onClick={() => { setEditingId(emp.id); setNewBudget(String(emp.walletAssigned ?? emp.budgetAllocated ?? 0)); }}>
                       Edit Budget
                     </button>
                   )}

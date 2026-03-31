@@ -154,6 +154,7 @@ export default function Transactions() {
                 <th>Category</th>
                 <th>Amount</th>
                 <th>Mode</th>
+                <th>Receipt & OCR</th>
                 <th>Location</th>
                 <th>Status</th>
                 <th>Decision</th>
@@ -178,6 +179,37 @@ export default function Transactions() {
                     <td>{row.category || 'General'}</td>
                     <td style={{ fontWeight: 700 }}>{formatCurrency(row.amount || 0)}</td>
                     <td>{row.paymentMode || 'UPI'}</td>
+                    <td>
+                      {row.receiptImage ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <a href={row.receiptImage} target="_blank" rel="noreferrer">
+                            <img src={row.receiptImage} alt="Receipt" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+                          </a>
+                          {row.ocrData && (
+                            <details style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>
+                              <summary>View OCR</summary>
+                              <div>Vendor: {row.ocrData.vendor}</div>
+                              <div>Date: {row.ocrData.date}</div>
+                              <div>Amt: {row.ocrData.amount}</div>
+                              <div>Tax: {row.ocrData.vat_tax}</div>
+                              <div>Phone: {row.ocrData.phone}</div>
+                              {row.ocrData.items && (
+                                <div style={{marginTop: 4}}>
+                                  <strong>Items:</strong>
+                                  <ul style={{paddingLeft: '12px', margin: '2px 0'}}>
+                                    {row.ocrData.items.map((item, i) => (
+                                      <li key={i}>{item.name} (x{item.quantity}) - {item.price}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </details>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="muted-text">No Receipt</span>
+                      )}
+                    </td>
                     <td>
                       {mapLink ? (
                         <a href={mapLink} target="_blank" rel="noreferrer" className="location-link">
@@ -217,7 +249,7 @@ export default function Transactions() {
               })}
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="empty-state-cell">No transactions match the selected filters.</td>
+                  <td colSpan={11} className="empty-state-cell">No transactions match the selected filters.</td>
                 </tr>
               ) : null}
             </tbody>

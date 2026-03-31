@@ -178,14 +178,36 @@ export default function Expenses() {
                            <span style={{ color: 'var(--color-text-secondary)' }}>Merchant:</span>
                            <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{selectedExpense.vendor}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                            <span style={{ color: 'var(--color-text-secondary)' }}>Amount Claimed:</span>
                            <span style={{ fontWeight: 'bold', fontSize: '1.5rem', color: 'var(--color-primary)' }}>{formatCurrency(selectedExpense.amount)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        
+                        {(selectedExpense.vatTax !== undefined || selectedExpense.confidence) && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
+                             <span style={{ color: 'var(--color-text-secondary)' }}>VAT / Tax:</span>
+                             <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{selectedExpense.vatTax ? formatCurrency(selectedExpense.vatTax) : 'N/A'}</span>
+                             <span style={{ color: 'var(--color-text-secondary)', marginLeft: 8 }}>Confidence:</span>
+                             <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{selectedExpense.confidence ? (selectedExpense.confidence * 100).toFixed(0) + "%" : 'N/A'}</span>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '0.85rem' }}>
                            <span style={{ color: 'var(--color-text-secondary)' }}>Extracted Date:</span>
                            <span>{new Date(selectedExpense.date).toLocaleString()}</span>
                         </div>
+
+                        {selectedExpense.items && selectedExpense.items.length > 0 && (
+                          <div style={{ marginTop: '16px', borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
+                            <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem', fontWeight: 600 }}>Itemized Bill:</span>
+                            <ul style={{ paddingLeft: '20px', margin: '8px 0 0 0', fontSize: '0.85rem' }}>
+                              {selectedExpense.items.map((it, idx) => (
+                                <li key={idx}><strong>{it.quantity || 1}x</strong> {it.name} - {formatCurrency(it.price)}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
                      </div>
 
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
