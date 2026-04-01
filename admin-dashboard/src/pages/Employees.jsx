@@ -8,6 +8,8 @@ export default function Employees() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [newBudget, setNewBudget] = useState('');
+  const [newAccessAdd, setNewAccessAdd] = useState(true);
+  const [newAccessWallet, setNewAccessWallet] = useState(true);
   const [searchInput, setSearchInput] = useState('');
   const [sortBy, setSortBy] = useState('latest');
 
@@ -64,6 +66,8 @@ export default function Employees() {
         walletAssigned: parsedBudget,
         walletBalance,
         period: 'Monthly',
+        canAccessAddBill: newAccessAdd,
+        canAccessWallet: newAccessWallet,
         updatedAt: new Date().toISOString(),
       });
 
@@ -106,6 +110,7 @@ export default function Employees() {
               <th>Department</th>
               <th>Contact / UPI</th>
               <th>Allocated Monthly Budget</th>
+              <th>App Modules</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -136,20 +141,44 @@ export default function Employees() {
                 </td>
                 <td>
                   {editingId === emp.id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={newAccessAdd} onChange={(e) => setNewAccessAdd(e.target.checked)} />
+                        Enable Add Tab
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={newAccessWallet} onChange={(e) => setNewAccessWallet(e.target.checked)} />
+                        Enable Wallet Tab
+                      </label>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {(emp.canAccessAddBill ?? true) ? <span className="status-badge" style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '12px' }}>Add ✓</span> : <span className="status-badge" style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: '12px' }}>Add ✕</span>}
+                      {(emp.canAccessWallet ?? true) ? <span className="status-badge" style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '12px' }}>Wallet ✓</span> : <span className="status-badge" style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: '12px' }}>Wallet ✕</span>}
+                    </div>
+                  )}
+                </td>
+                <td>
+                  {editingId === emp.id ? (
                     <div className="action-buttons">
                       <button className="btn btn-outline" style={{ color: 'var(--color-success)', borderColor: 'var(--color-success)'}} onClick={() => handleUpdateBudget(emp.id)}>Save</button>
                       <button className="btn btn-outline" onClick={() => setEditingId(null)}>Cancel</button>
                     </div>
                   ) : (
-                    <button className="btn btn-outline" onClick={() => { setEditingId(emp.id); setNewBudget(String(emp.walletAssigned ?? emp.budgetAllocated ?? 0)); }}>
-                      Edit Budget
+                    <button className="btn btn-outline" onClick={() => { 
+                      setEditingId(emp.id); 
+                      setNewBudget(String(emp.walletAssigned ?? emp.budgetAllocated ?? 0));
+                      setNewAccessAdd(emp.canAccessAddBill ?? true);
+                      setNewAccessWallet(emp.canAccessWallet ?? true);
+                    }}>
+                      Edit Access
                     </button>
                   )}
                 </td>
               </tr>
             ))}
             {visibleEmployees.length === 0 && (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '32px' }}>No employees found. Register a user via the Mobile App.</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px' }}>No employees found. Register a user via the Mobile App.</td></tr>
             )}
           </tbody>
         </table>
