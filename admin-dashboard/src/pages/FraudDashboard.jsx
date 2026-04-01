@@ -5,7 +5,6 @@ import {
   IoCheckmarkCircleOutline,
   IoEyeOutline,
   IoRefreshCircleOutline,
-  IoSettingsOutline,
   IoShieldCheckmarkOutline,
   IoWarningOutline,
 } from 'react-icons/io5';
@@ -13,7 +12,6 @@ import MetricCard from '../components/MetricCard';
 import { useAdminData } from '../context/AdminDataContext';
 import {
   FRAUD_DECISIONS,
-  VERIFICATION_MODES,
   decisionFromStatus,
   getFraudStatus,
   mergeFraudSettings,
@@ -30,26 +28,12 @@ const toDecisionBadgeClass = (decision) => {
   return 'status-pending';
 };
 
-const parseList = (raw) => {
-  return String(raw || '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-};
-
-const parseWeekdays = (raw) => {
-  return parseList(raw)
-    .map((item) => Number(item))
-    .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6);
-};
-
 export default function FraudDashboard() {
   const {
     transactions,
     loading,
     totals,
     fraudSettings,
-    saveFraudSettings,
     overrideTransactionDecision,
     revertTransactionDecision,
   } = useAdminData();
@@ -59,24 +43,8 @@ export default function FraudDashboard() {
   const [search, setSearch] = useState('');
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [overrideBusyId, setOverrideBusyId] = useState('');
-  const [savingSettings, setSavingSettings] = useState(false);
 
-  const [settingsDraft, setSettingsDraft] = useState(mergeFraudSettings(fraudSettings));
-  const [categoryLimitsInput, setCategoryLimitsInput] = useState('{}');
-  const [allowedCitiesInput, setAllowedCitiesInput] = useState('');
-  const [restrictedVendorsInput, setRestrictedVendorsInput] = useState('');
-  const [vendorWhitelistInput, setVendorWhitelistInput] = useState('');
-  const [allowedWeekDaysInput, setAllowedWeekDaysInput] = useState('0,1,2,3,4,5,6');
-
-  useEffect(() => {
-    const merged = mergeFraudSettings(fraudSettings);
-    setSettingsDraft(merged);
-    setCategoryLimitsInput(JSON.stringify(merged.policy.maxExpensePerCategory, null, 2));
-    setAllowedCitiesInput((merged.policy.allowedCities || []).join(', '));
-    setRestrictedVendorsInput((merged.policy.restrictedVendors || []).join(', '));
-    setVendorWhitelistInput((merged.policy.vendorWhitelist || []).join(', '));
-    setAllowedWeekDaysInput((merged.policy.timeWindow.allowedWeekDays || []).join(','));
-  }, [fraudSettings]);
+  const effectiveSettings = useMemo(() => mergeFraudSettings(fraudSettings), [fraudSettings]);
 
   const analyzedExpenses = useMemo(() => {
     return transactions.map((tx) => {
@@ -129,7 +97,7 @@ export default function FraudDashboard() {
 
   const filteredExpenses = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const highRiskThreshold = Number(settingsDraft.thresholds?.highRisk || 85);
+    const highRiskThreshold = Number(effectiveSettings.thresholds?.highRisk || 85);
 
     return normalizedExpenses.filter((row) => {
       const matchesDecision = decisionFilter === 'all' || row.decision === decisionFilter;
@@ -139,7 +107,7 @@ export default function FraudDashboard() {
         .some((value) => String(value).toLowerCase().includes(query));
       return matchesDecision && matchesHighRisk && matchesSearch;
     });
-  }, [decisionFilter, highRiskOnly, normalizedExpenses, search, settingsDraft.thresholds?.highRisk]);
+  }, [decisionFilter, highRiskOnly, normalizedExpenses, search, effectiveSettings.thresholds?.highRisk]);
 
   const stats = useMemo(() => {
     const overrideCount = normalizedExpenses.filter((row) => row.overridden).length;
@@ -152,47 +120,6 @@ export default function FraudDashboard() {
       avgConfidence: `${(avgConfidence * 100).toFixed(1)}%`,
     };
   }, [normalizedExpenses]);
-
-  const updateDraft = (nextPartial) => {
-    setSettingsDraft((prev) => mergeFraudSettings(prev, nextPartial));
-  };
-
-  const saveSettings = async () => {
-    let parsedCategoryLimits;
-    try {
-      parsedCategoryLimits = JSON.parse(categoryLimitsInput || '{}');
-      if (Array.isArray(parsedCategoryLimits) || typeof parsedCategoryLimits !== 'object' || parsedCategoryLimits == null) {
-        throw new Error('Category limits must be an object map.');
-      }
-    } catch (error) {
-      toast.error(`Invalid category limits JSON: ${error.message}`);
-      return;
-    }
-
-    const normalized = mergeFraudSettings(settingsDraft, {
-      policy: {
-        ...settingsDraft.policy,
-        maxExpensePerCategory: parsedCategoryLimits,
-        allowedCities: parseList(allowedCitiesInput),
-        restrictedVendors: parseList(restrictedVendorsInput),
-        vendorWhitelist: parseList(vendorWhitelistInput),
-        timeWindow: {
-          ...settingsDraft.policy.timeWindow,
-          allowedWeekDays: parseWeekdays(allowedWeekDaysInput),
-        },
-      },
-    });
-
-    setSavingSettings(true);
-    try {
-      await saveFraudSettings(normalized);
-      toast.success('Fraud policy settings saved.');
-    } catch (error) {
-      toast.error(error.message || 'Failed to save policy settings.');
-    } finally {
-      setSavingSettings(false);
-    }
-  };
 
   const applyOverride = async (transactionId, decision) => {
     setOverrideBusyId(transactionId);
@@ -240,210 +167,10 @@ export default function FraudDashboard() {
 
       <section className="stats-grid">
         <MetricCard title="Monitored Transactions" value={totals.transactionCount} subtitle="Live fraud pipeline coverage" />
-        <MetricCard title="High-Risk Queue" value={totals.highRiskCount || 0} subtitle={`Score >= ${settingsDraft.thresholds.highRisk}`} accent="var(--color-danger)" />
+        <MetricCard title="High-Risk Queue" value={totals.highRiskCount || 0} subtitle={`Score >= ${effectiveSettings.thresholds.highRisk}`} accent="var(--color-danger)" />
         <MetricCard title="Undecided Decisions" value={totals.undecidedCount || 0} subtitle="Awaiting admin verification" accent="var(--color-warning)" />
         <MetricCard title="Active Overrides" value={stats.overrideCount} subtitle="Reversible admin interventions" accent="var(--color-secondary)" />
         <MetricCard title="Average Confidence" value={stats.avgConfidence} subtitle="Composite model certainty" accent="var(--color-primary)" />
-      </section>
-
-      <section className="card" style={{ marginBottom: 18 }}>
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <IoSettingsOutline /> Policy Settings Panel
-        </h2>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
-          <label>
-            <div className="metric-title">Verification Mode</div>
-            <select
-              className="field"
-              value={settingsDraft.verificationMode}
-              onChange={(event) => updateDraft({ verificationMode: event.target.value })}
-            >
-              <option value={VERIFICATION_MODES.MANUAL}>MANUAL</option>
-              <option value={VERIFICATION_MODES.AUTO}>AUTO</option>
-            </select>
-          </label>
-
-          <label>
-            <div className="metric-title">High-Risk Threshold</div>
-            <input
-              className="field"
-              type="number"
-              value={settingsDraft.thresholds.highRisk}
-              onChange={(event) => updateDraft({ thresholds: { highRisk: Number(event.target.value) } })}
-            />
-          </label>
-
-          <label>
-            <div className="metric-title">Approve Threshold (0-100)</div>
-            <input
-              className="field"
-              type="number"
-              value={settingsDraft.thresholds.approveMax}
-              onChange={(event) => updateDraft({ thresholds: { approveMax: Number(event.target.value) } })}
-            />
-          </label>
-
-          <label>
-            <div className="metric-title">Reject Threshold (0-100)</div>
-            <input
-              className="field"
-              type="number"
-              value={settingsDraft.thresholds.rejectMin}
-              onChange={(event) => updateDraft({ thresholds: { rejectMin: Number(event.target.value) } })}
-            />
-          </label>
-
-          <label>
-            <div className="metric-title">Weight: Rule Signals</div>
-            <input
-              className="field"
-              type="number"
-              step="0.01"
-              value={settingsDraft.weights.rules}
-              onChange={(event) => updateDraft({ weights: { rules: Number(event.target.value) } })}
-            />
-          </label>
-
-          <label>
-            <div className="metric-title">Weight: Geo Signals</div>
-            <input
-              className="field"
-              type="number"
-              step="0.01"
-              value={settingsDraft.weights.geo}
-              onChange={(event) => updateDraft({ weights: { geo: Number(event.target.value) } })}
-            />
-          </label>
-
-          <label>
-            <div className="metric-title">Weight: ML Signals</div>
-            <input
-              className="field"
-              type="number"
-              step="0.01"
-              value={settingsDraft.weights.ml}
-              onChange={(event) => updateDraft({ weights: { ml: Number(event.target.value) } })}
-            />
-          </label>
-
-          <label>
-            <div className="metric-title">Weight: Policy Signals</div>
-            <input
-              className="field"
-              type="number"
-              step="0.01"
-              value={settingsDraft.weights.policy}
-              onChange={(event) => updateDraft({ weights: { policy: Number(event.target.value) } })}
-            />
-          </label>
-
-          <label>
-            <div className="metric-title">Allowed Cities (comma separated)</div>
-            <input className="field" value={allowedCitiesInput} onChange={(event) => setAllowedCitiesInput(event.target.value)} />
-          </label>
-
-          <label>
-            <div className="metric-title">Restricted Vendors (comma separated)</div>
-            <input className="field" value={restrictedVendorsInput} onChange={(event) => setRestrictedVendorsInput(event.target.value)} />
-          </label>
-
-          <label>
-            <div className="metric-title">Vendor Whitelist (comma separated)</div>
-            <input className="field" value={vendorWhitelistInput} onChange={(event) => setVendorWhitelistInput(event.target.value)} />
-          </label>
-
-          <label>
-            <div className="metric-title">Allowed Weekdays (0-6 comma separated)</div>
-            <input className="field" value={allowedWeekDaysInput} onChange={(event) => setAllowedWeekDaysInput(event.target.value)} />
-          </label>
-
-          <label>
-            <div className="metric-title">Daily Limit</div>
-            <input
-              className="field"
-              type="number"
-              value={settingsDraft.policy.dailyLimit}
-              onChange={(event) => updateDraft({ policy: { dailyLimit: Number(event.target.value) } })}
-            />
-          </label>
-
-          <label>
-            <div className="metric-title">Weekly Limit</div>
-            <input
-              className="field"
-              type="number"
-              value={settingsDraft.policy.weeklyLimit}
-              onChange={(event) => updateDraft({ policy: { weeklyLimit: Number(event.target.value) } })}
-            />
-          </label>
-
-          <label>
-            <div className="metric-title">Time Window Start Hour</div>
-            <input
-              className="field"
-              type="number"
-              value={settingsDraft.policy.timeWindow.startHour}
-              onChange={(event) => updateDraft({ policy: { timeWindow: { startHour: Number(event.target.value) } } })}
-            />
-          </label>
-
-          <label>
-            <div className="metric-title">Time Window End Hour</div>
-            <input
-              className="field"
-              type="number"
-              value={settingsDraft.policy.timeWindow.endHour}
-              onChange={(event) => updateDraft({ policy: { timeWindow: { endHour: Number(event.target.value) } } })}
-            />
-          </label>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={Boolean(settingsDraft.policy.enforceWhitelist)}
-              onChange={(event) => updateDraft({ policy: { enforceWhitelist: event.target.checked } })}
-            />
-            <span>Enforce vendor whitelist</span>
-          </label>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={Boolean(settingsDraft.policy.geofence.enabled)}
-              onChange={(event) => updateDraft({ policy: { geofence: { enabled: event.target.checked } } })}
-            />
-            <span>Enable geofence policy</span>
-          </label>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={Boolean(settingsDraft.policy.timeWindow.enabled)}
-              onChange={(event) => updateDraft({ policy: { timeWindow: { enabled: event.target.checked } } })}
-            />
-            <span>Enable time window policy</span>
-          </label>
-        </div>
-
-        <div style={{ marginTop: 14 }}>
-          <div className="metric-title" style={{ marginBottom: 8 }}>Category Limits JSON</div>
-          <textarea
-            className="field"
-            style={{ minHeight: 140, width: '100%', fontFamily: 'ui-monospace, monospace' }}
-            value={categoryLimitsInput}
-            onChange={(event) => setCategoryLimitsInput(event.target.value)}
-          />
-        </div>
-
-        <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-          <div className="muted-text">
-            Data strategy: {settingsDraft.dataStrategy.realDataWeight} real / {settingsDraft.dataStrategy.syntheticDataWeight} synthetic
-          </div>
-          <button className="btn btn-primary" onClick={saveSettings} disabled={savingSettings}>
-            {savingSettings ? 'Saving...' : 'Save Fraud Settings'}
-          </button>
-        </div>
       </section>
 
       <section className="card" style={{ marginBottom: 18 }}>
@@ -487,7 +214,7 @@ export default function FraudDashboard() {
             </thead>
             <tbody>
               {filteredExpenses.map((row) => (
-                <tr key={row.id} className={row.fraudScore >= settingsDraft.thresholds.highRisk ? 'row-fraud' : row.decision === FRAUD_DECISIONS.UNDECIDED ? 'row-review' : ''}>
+                <tr key={row.id} className={row.fraudScore >= effectiveSettings.thresholds.highRisk ? 'row-fraud' : row.decision === FRAUD_DECISIONS.UNDECIDED ? 'row-review' : ''}>
                   <td>
                     <div>{new Date(row.timestamp || row.date).toLocaleDateString()}</div>
                     <div className="muted-text">{timeAgo(row.timestamp || row.date)}</div>
@@ -548,7 +275,7 @@ export default function FraudDashboard() {
                   <div className="fraud-info-box"><div className="muted-text">Score</div><strong>{selectedExpense.fraudScore}/100</strong></div>
                   <div className="fraud-info-box"><div className="muted-text">Confidence</div><strong>{(selectedExpense.confidence * 100).toFixed(1)}%</strong></div>
                   <div className="fraud-info-box"><div className="muted-text">Decision</div><strong>{selectedExpense.decision}</strong></div>
-                  <div className="fraud-info-box"><div className="muted-text">Mode</div><strong>{selectedExpense.verificationMode || settingsDraft.verificationMode}</strong></div>
+                  <div className="fraud-info-box"><div className="muted-text">Mode</div><strong>{selectedExpense.verificationMode || effectiveSettings.verificationMode}</strong></div>
                 </div>
               </div>
 
@@ -579,6 +306,29 @@ export default function FraudDashboard() {
                   <div className="muted-text">No policy violations triggered.</div>
                 )}
               </div>
+
+              {(selectedExpense.receiptImage) && (
+                <div className="fraud-section">
+                  <h3>Receipt / Payment Proof</h3>
+                  <a href={selectedExpense.receiptImage} target="_blank" rel="noreferrer">
+                    <img
+                      src={selectedExpense.receiptImage}
+                      alt="Receipt"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: 300,
+                        objectFit: 'contain',
+                        borderRadius: 8,
+                        border: '1px solid var(--color-border)',
+                        cursor: 'pointer',
+                      }}
+                    />
+                  </a>
+                  <div className="muted-text" style={{ marginTop: 6, fontSize: '0.78rem' }}>
+                    Click image to open full size in new tab
+                  </div>
+                </div>
+              )}
 
               <div className="fraud-section">
                 <h3>AI Explanation</h3>

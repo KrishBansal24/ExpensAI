@@ -6,7 +6,6 @@ import {
   IoReceiptOutline,
   IoSettingsOutline,
   IoShieldCheckmarkOutline,
-  IoWalletOutline,
 } from 'react-icons/io5';
 import { useAuth } from '../context/AuthContext';
 
@@ -37,11 +36,7 @@ export default function Sidebar() {
         </NavLink>
         <NavLink to="/fraud-settings" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
           <IoSettingsOutline size={20} />
-          <span>Fraud Settings</span>
-        </NavLink>
-        <NavLink to="/budget-allocation" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
-          <IoWalletOutline size={20} />
-          <span>Budget Allocation</span>
+          <span>Fraud & Policy</span>
         </NavLink>
         <NavLink to="/employees" className={({isActive}) => isActive ? "nav-item active" : "nav-item"}>
           <IoPeopleOutline size={20} />

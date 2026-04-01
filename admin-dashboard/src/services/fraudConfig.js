@@ -109,6 +109,10 @@ export const DEFAULT_FRAUD_SETTINGS = {
     },
     dailyLimit: 25000,
     weeklyLimit: 100000,
+    upiSubmitPolicy: {
+      timeLimitMinutes: 30,
+      radiusKm: 5,
+    },
   },
   dataStrategy: {
     realDataWeight: 0.90,
@@ -175,6 +179,10 @@ function normalizePolicy(policy = {}) {
       ...DEFAULT_FRAUD_SETTINGS.policy.maxExpensePerCategory,
       ...(policy.maxExpensePerCategory || {}),
     },
+    upiSubmitPolicy: {
+      ...DEFAULT_FRAUD_SETTINGS.policy.upiSubmitPolicy,
+      ...(policy.upiSubmitPolicy || {}),
+    },
   };
 
   const toStringList = (value) => {
@@ -209,6 +217,10 @@ function normalizePolicy(policy = {}) {
       startHour: clamp(Number(mergedPolicy.timeWindow.startHour ?? 0), 0, 23),
       endHour: clamp(Number(mergedPolicy.timeWindow.endHour ?? 23), 0, 23),
       allowedWeekDays,
+    },
+    upiSubmitPolicy: {
+      timeLimitMinutes: Math.max(Number(mergedPolicy.upiSubmitPolicy?.timeLimitMinutes || 30), 1),
+      radiusKm: Math.max(Number(mergedPolicy.upiSubmitPolicy?.radiusKm || 5), 0.1),
     },
   };
 }

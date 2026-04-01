@@ -168,6 +168,7 @@ export default function Transactions() {
                 const mapLink = row.location?.lat != null && row.location?.lng != null
                   ? `https://maps.google.com/?q=${row.location.lat},${row.location.lng}`
                   : null;
+                const receiptUrl = row.receiptImage || row.receiptImageUrl || row.receiptUrl || row.screenshotUrl || row.proofImage || '';
 
                 return (
                   <tr key={row.id}>
@@ -180,10 +181,10 @@ export default function Transactions() {
                     <td style={{ fontWeight: 700 }}>{formatCurrency(row.amount || 0)}</td>
                     <td>{row.paymentMode || 'UPI'}</td>
                     <td>
-                      {row.receiptImage ? (
+                      {receiptUrl ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <a href={row.receiptImage} target="_blank" rel="noreferrer">
-                            <img src={row.receiptImage} alt="Receipt" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+                          <a href={receiptUrl} target="_blank" rel="noreferrer">
+                            <img src={receiptUrl} alt="Receipt" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
                           </a>
                           {row.ocrData && (
                             <details style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>

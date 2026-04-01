@@ -17,6 +17,10 @@ export default function Expenses() {
   // Modal State
   const [selectedExpense, setSelectedExpense] = useState(null);
 
+  const getReceiptUrl = (row) => {
+    return row?.receiptImage || row?.receiptImageUrl || row?.receiptUrl || row?.screenshotUrl || row?.proofImage || '';
+  };
+
   useEffect(() => {
     setExpenses(transactions || []);
   }, [transactions]);
@@ -275,8 +279,8 @@ export default function Expenses() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                      <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><IoCameraOutline size={20}/> Scanned Receipt</h3>
                      <div style={{ width: '100%', height: '400px', backgroundColor: '#e2e8f0', borderRadius: '12px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {selectedExpense.receiptImage ? (
-                           <img src={selectedExpense.receiptImage} alt="Receipt" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      {getReceiptUrl(selectedExpense) ? (
+                        <img src={getReceiptUrl(selectedExpense)} alt="Receipt" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                         ) : (
                            <div style={{ color: '#64748b' }}>No receipt image provided.</div>
                         )}
