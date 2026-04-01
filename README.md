@@ -109,7 +109,7 @@ cd admin-dashboard
 npm install
 npm run dev
 ```
-The dashboard will be available at `http://localhost:5173`.
+The dashboard will be available at `http://localhost:5173` or paste this in browser 'https://project-rmvv2.vercel.app'.
 
 ### 4. Run the Employee App (Mobile)
 Open a new terminal session and start the Expo dev server:
@@ -119,6 +119,7 @@ npm install
 npx expo start
 ```
 Scan the resulting QR code using the **Expo Go** application on your iOS or Android device.
+
 
 > ⚙️ **Looking to deploy to Production?** For detailed instructions on Vercel deployment and EAS builds, see the [Advanced Setup & Deployment Guide](./SETUP_GUIDE.md)!
 
